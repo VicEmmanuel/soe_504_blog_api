@@ -85,7 +85,10 @@ class AuthenticationController extends Controller
         // Generate a JWT token for the newly created user
         $token = JWTAuth::fromUser($user);
 
-        return $this->success([], 'Account created successfully');
+        return $this->success([
+            'user' => $user,
+            'access_token' => $token
+        ], 'Account created successfully');
     }
 
 

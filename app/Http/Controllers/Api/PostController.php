@@ -19,6 +19,7 @@ class PostController extends Controller
             // Validate the request
             $validator = Validator::make($request->all(), [
                 'body' => 'required',
+                'title' => 'required',
                 'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048', // Adjust rules as needed
             ]);
 
@@ -42,6 +43,7 @@ class PostController extends Controller
 
             // Create the post
             $post = Post::create([
+                'title' => $request->input('title'),
                 'body' => $request->input('body'),
                 'image' => $newImageName,
                 'user_id' => $user->id,
@@ -86,6 +88,128 @@ class PostController extends Controller
             'totalCount' => $post->total(),
             'post' => $postItems,
         ], 'Post retrieved successfully', 200);
+    }
+
+
+    // Fetch a single post by ID
+    public function fetchPost($id)
+    {
+        $post = Post::find($id);
+
+        if (!$post) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Post not found',
+            ], 404);
+        }
+
+        return $this->success([
+            'post' => $post,
+        ], 'Post retrieved successfully', 200);
+    }
+
+    // Update an existing post
+    public function updatePost(Request $request, $id)
+    {
+        try {
+            $post = Post::find($id);
+
+            if (!$post) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Post not found',
+                ], 404);
+            }
+
+            if ($post->user_id !== Auth::id()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized to update this post',
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'body' => 'required|string',
+                'title' => 'required',
+                'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $validator->errors()->first(),
+                ], 422);
+            }
+
+            if ($request->hasFile('image')) {
+                $imageFile = $request->file('image');
+                $newImageName = uniqid() . '.' . $imageFile->extension();
+                $imageFile->move(public_path('posts'), $newImageName);
+                $post->image = url('posts/' . $newImageName);
+            }
+
+            $post->body = $request->input('body');
+            $post->title = $request->input('title');
+            $post->save();
+
+            return $this->success([
+                'post' => $post,
+            ], 'Post updated successfully');
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error updating post',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Delete a post
+    public function deletePost($id)
+    {
+        $post = Post::find($id);
+
+        if (!$post) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Post not found',
+            ], 404);
+        }
+
+        if ($post->user_id !== Auth::id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to delete this post',
+            ], 403);
+        }
+
+        $post->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Post deleted successfully',
+        ], 200);
+    }
+
+    // Search and filter posts by keyword
+    public function searchPosts(Request $request)
+    {
+        $query = Post::query();
+
+        if ($request->has('keyword')) {
+            $keyword = $request->input('keyword');
+
+            $query->where(function ($q) use ($keyword) {
+                $q->where('title', 'LIKE', "%{$keyword}%")
+                    ->orWhere('body', 'LIKE', "%{$keyword}%");
+            });
+        }
+
+        $posts = $query->orderBy('created_at', 'DESC')->paginate(10);
+
+        return $this->success([
+            'posts' => $posts,
+        ], 'Search results retrieved successfully', 200);
     }
 
 }

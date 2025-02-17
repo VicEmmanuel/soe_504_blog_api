@@ -25,7 +25,7 @@ class CommentController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => 'error',
+                'status' => false,
                 'message' => $validator->errors()->first()
             ], 422);
         }
@@ -72,4 +72,71 @@ class CommentController extends Controller
             'comment' => $commentItems,
         ], 'Comment retrieved successfully', 200);
     }
+
+
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'comment' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        $comment = Comment::find($id);
+
+        if (!$comment) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Comment not found'
+            ], 404);
+        }
+
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to edit this comment'
+            ], 403);
+        }
+
+        $comment->update(['comment' => $request->input('comment')]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Comment updated successfully',
+            'data' => new CommentResource($comment)
+        ], 200);
+    }
+
+    public function destroy($id)
+    {
+        $comment = Comment::find($id);
+
+        if (!$comment) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Comment not found'
+            ], 404);
+        }
+
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized to delete this comment'
+            ], 403);
+        }
+
+        $comment->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Comment deleted successfully'
+        ], 200);
+    }
+
+
 }

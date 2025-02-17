@@ -76,4 +76,16 @@ class User extends Authenticatable implements JWTSubject
             $user->user_id = Str::uuid(); // Generates a UUID
         });
     }
+
+    // Relationship: Users following this user
+    public function followers()
+    {
+        return $this->hasMany(Follow::class, 'following_id');
+    }
+
+    // Relationship: Users that this user follows
+    public function following()
+    {
+        return $this->hasMany(Follow::class, 'follower_id');
+    }
 }

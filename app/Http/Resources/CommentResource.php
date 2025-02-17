@@ -23,6 +23,11 @@ class CommentResource extends JsonResource
                 'lastname'=> $this->user->lastname,
             ],
 
+            'post' => [
+                'post_id' => $this->post->id,
+                'body' => $this->post->body,
+            ]
+
         ];
     }
 }
